@@ -1,77 +1,37 @@
 import os
 import uvicorn
-from dateutil.parser import parse
-from quart import Quart, jsonify, websocket, request
-from quart_motor import Motor
+from quart import Quart
 from dotenv import load_dotenv
-load_dotenv()
 
-from pprint import pprint
+from db import motor
+
+from blueprint.api import bp
+
+load_dotenv(override=True)
 
 app = Quart(__name__)
-mongo = Motor()
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["SERVER_NAME"] = os.getenv("SERVER_NAME")
+app.config["MONGO_URI"] = os.getenv("MONGO_URI")
 
-print(os.getenv("MONGO_URI"))
+motor.init_app(app)
 
-app.config["MOTOR_URI"] = os.getenv("MONGO_URI")
-mongo.init_app(app, uri=app.config["MOTOR_URI"])
+app.register_blueprint(bp)
 
-clients = set()
-
-def convert_datetime_objects(data):
-    for key, value in data.items():
-        try:
-            data[key] = parse(value)
-        except (TypeError, ValueError):
-            pass
-    return data
-
-async def get_current_market_data() -> dict:
-    count = (await mongo.db.Items.find_one({"_id": 0}))["count"]-1
-    print(count)
-    data = (await mongo.db.Items.find_one({"_id": count}))
-    return data
-
-async def add_scan_to_database(items: dict):
-    pprint(items)
-    value = await mongo.db.Items.find_one_and_update(
-        {"_id": 0},
-        {"$inc": {"count": 1}}
-    )
-    items["_id"] = value["count"]
-    await mongo.db.Items.insert_one(items)
-
-@app.route("/")
-async def index():
-    return "<h1 style=\"text-align: center\">Vio Website</h1>"
-
-@app.route("/data", methods=["POST"])
-async def data():
-    global clients
-    data = await request.get_json()
-    for client in clients:
-        await client.send_json(data)
-    data = convert_datetime_objects(data)
-    print(data)
-    await add_scan_to_database(data)
-    return 'Good', 200
-
-@app.websocket("/")
-async def ws_endpoint():
-    await websocket.accept()
-    global clients
-    print(f"Connection Made with: {websocket.remote_addr}")
-    clients.add(websocket._get_current_object())
-    try:
-        while True:
-            data = await websocket.receive()
-            print(data)
-            # await add_scan_to_database(data)
-            for client in clients:
-                await client.send(data)
-    except:
-        clients.remove(websocket)
-
+@app.before_serving
+async def setup_database():
+    collection_names = await motor.db.list_collection_names()
+    if "Market" not in collection_names:
+        await motor.db.create_collection("Market")
+        await motor.db.Market.insert_one({"_id": 0, "count": 1})
+    if "Roblox" not in collection_names:
+        await motor.db.create_collection("Roblox")
+    if "Resources" not in collection_names:
+        await motor.db.create_collection("Resources")
+        await motor.db.Resources.insert_one({"_id": 0, "count": 1})
+    if "Info" not in collection_names:
+        await motor.db.create_collection("Info")
+        await motor.db.Info.insert_one({"_id": 0, "items": []})
 
 if __name__ == "__main__":
     uvicorn.run("main:app",
