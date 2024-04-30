@@ -19,6 +19,15 @@ class User(BaseModel):
     global_name: str = None
     avatar: str = None
 
+    @validator("avatar", pre=True, always=True)
+    def set_avatar(cls, v, values):
+        if v is None:
+            return None
+        user_id = values.get("id")
+        if user_id is None:
+            return None
+        return f"https://cdn.discordapp.com/avatars/{user_id}/{v}.png?size=512"
+
 class UserPermissions(BaseModel):
     user: User
     evaluation: bool = False
@@ -26,3 +35,23 @@ class UserPermissions(BaseModel):
     scraper: bool = False
     admin: bool = False
     owner: bool = False
+
+class Scraper(BaseModel):
+    name: str
+    active: bool
+    yoinked: bool
+
+    def mongo_dump(self):
+        return {
+            "_id": self.name,
+            "active": self.active,
+            "yoinked": self.yoinked
+        }
+    
+    @classmethod
+    def mongo_load(cls, data):
+        return Scraper(
+            name=data["_id"],
+            active=data["active"],
+            yoinked=data["yoinked"]
+        )

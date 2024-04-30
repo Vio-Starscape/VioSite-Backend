@@ -1,16 +1,16 @@
 import os
 import uvicorn
-import secrets
 import logging
 import aiohttp
 from functools import wraps
 from jose import jwt
 from quart import Quart, jsonify, request, redirect, url_for, session
 from quart_motor import Motor
+from pymongo import UpdateOne
 from quart_cors import cors
 from dotenv import load_dotenv
 
-from Objects import Token, User, UserPermissions
+from Objects import Token, User, UserPermissions, Scraper
 
 load_dotenv(override=True)
 
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 app = Quart(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["OWNER_API_KEY"] = os.getenv("OWNER_API_KEY")
 app.config["SERVER_NAME"] = os.getenv("SERVER_NAME")
 
 app.config["DISCORD_BASE_URL"] = "https://discord.com/api/v10"
@@ -27,8 +28,16 @@ app.config["DISCORD_REDIRECT_URI"] = os.getenv("DISCORD_REDIRECT_URI")
 
 app.config["MONGO_URI"] = os.getenv("MONGO_URI")
 
-app = cors(app, allow_origin="*")
+app = cors(app, allow_origin=os.getenv("ALLOW_ORIGIN"))
 motor = Motor(app)
+
+def owner_api_key_required(f):
+    @wraps(f)
+    async def decorated_function(*args, **kwargs):
+        if request.headers.get("x-api-key") == app.config["OWNER_API_KEY"]:
+            return await f(*args, **kwargs)
+        return jsonify({"message": "Unauthorized"}), 401
+    return decorated_function
 
 def token_required(f):
     @wraps(f)
@@ -44,7 +53,6 @@ def token_required(f):
                     user_permissions = UserPermissions(user=decoded_user, **user_permissions["permissions"])
                 else:
                     user_permissions = UserPermissions(user=decoded_user)
-                # kwargs["user"] = decoded_user
                 kwargs["user"] = user_permissions
 
             except Exception as e:
@@ -52,6 +60,21 @@ def token_required(f):
                 return jsonify({"message": "Token validation error"}), 401
         else:
             return jsonify({"message": "Token is missing"}), 401
+        return await f(*args, **kwargs)
+    return decorated_function
+
+def scraper_required(f):
+    @wraps(f)
+    async def decorated_function(*args, **kwargs):
+        data = await request.get_json()
+        try:
+            if isinstance(data, list):
+                kwargs["scrapers"] = [Scraper(**scraper) for scraper in data]
+            else:
+                kwargs["updated_scraper"] = Scraper(**data)
+        except Exception as e:
+            logger.error(e)
+            return jsonify({"message": "Invalid Scraper data"}), 400
         return await f(*args, **kwargs)
     return decorated_function
 
@@ -96,11 +119,6 @@ async def validate_user(token) -> Token:
 async def get_user_permissions(*, user: UserPermissions = None):
     return jsonify(user.model_dump())
 
-# @app.route("/api/auth/@me", methods=["GET"])
-# @token_required
-# async def get_user(*, user: User = None):
-#     return jsonify(user.model_dump())
-
 @app.route("/api/auth/register", methods=["POST"])
 async def register_user():
     data = await request.get_json()
@@ -116,13 +134,52 @@ async def register_user():
         return jsonify({"message": "error"}), 404
     return jsonify({"message": "error"}), 404
 
-@app.route('/api/scraper', methods=["GET"])
+@app.route('/api/scrapers', methods=["GET"])
 @token_required
 async def scraper(*, user: UserPermissions = None):
     if not user.scraper:
         return jsonify({"message": "You do not have permission to access this endpoint"}), 403
+    
+    scrapers = [Scraper.mongo_load(account) async for account in motor.db.Scrapers.find()]
 
-    return jsonify({"message": "scraper"})
+    return jsonify([scraper.model_dump() for scraper in scrapers])
+
+@app.route('/api/scraper/update', methods=["POST"])
+@token_required
+@scraper_required
+async def scraper_update(*, user: UserPermissions = None, updated_scraper: Scraper = None):
+    if not user.scraper:
+        return jsonify({"message": "You do not have permission to access this endpoint"}), 403
+    
+    await motor.db.Scrapers.update_one({"_id": updated_scraper.name}, {"$set": updated_scraper.mongo_dump()}, upsert=True)
+
+    return jsonify({"message": "success"})
+
+@app.route('/api/scraper/getall', methods=["GET"])
+@owner_api_key_required
+async def scraper_getall():
+    scrapers = [Scraper.mongo_load(account) async for account in motor.db.Scrapers.find()]
+    return jsonify([scraper.model_dump() for scraper in scrapers])
+
+
+@app.route('/api/scraper/bulk_update', methods=["POST"])
+@owner_api_key_required
+@scraper_required
+async def scraper_add(*, scrapers: list[Scraper] = None):
+
+    await motor.db.Scrapers.bulk_write(
+        [
+            UpdateOne(
+                {"_id": scraper.name},
+                {"$set": scraper.mongo_dump()},
+                upsert=True
+            ) for scraper in scrapers
+        ]
+    )
+
+    await motor.db.Scrapers.delete_many({"_id": {"$nin": [scraper.name for scraper in scrapers]}})
+        
+    return jsonify({"message": "success"})
 
 
 if __name__ == "__main__":
