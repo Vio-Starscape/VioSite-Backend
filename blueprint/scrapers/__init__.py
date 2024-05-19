@@ -20,7 +20,7 @@ async def scraper(user: UserPermissions):
 @scrapers_bp.route('/update', methods=["POST"])
 @token_required
 @scraper_required
-async def scraper_update(*, user: UserPermissions = None, updated_scraper: Scraper = None):
+async def scraper_update(user: UserPermissions, updated_scraper: Scraper = None):
     if not user.scraper:
         return jsonify({"message": "You do not have permission to access this endpoint"}), 403
     
@@ -38,7 +38,7 @@ async def scraper_getall():
 @scrapers_bp.route('/update/active', methods=["POST"])
 @owner_api_key_required
 @scraper_required
-async def scraper_update_active(*, updated_scraper: Scraper = None):
+async def scraper_update_active(updated_scraper: Scraper):
     await motor.db.Scrapers.update_many({}, {"$set": {"active": False}})
     await motor.db.Scrapers.update_one({"_id": updated_scraper.name}, {"$set": {"active": updated_scraper.active}})
     return jsonify({"message": "success"})
@@ -46,14 +46,14 @@ async def scraper_update_active(*, updated_scraper: Scraper = None):
 @scrapers_bp.route('/update/yoinked', methods=["POST"])
 @owner_api_key_required
 @scraper_required
-async def scraper_update_yoinked(*, updated_scraper: Scraper = None):
+async def scraper_update_yoinked(updated_scraper: Scraper):
     await motor.db.Scrapers.update_one({"_id": updated_scraper.name}, {"$set": updated_scraper.mongo_dump()})
     return jsonify({"message": "success"})
 
 @scrapers_bp.route('/sync', methods=["POST"])
 @owner_api_key_required
 @scraper_required
-async def scraper_add(*, scrapers: list[Scraper] = None):
+async def scraper_add(scrapers: list[Scraper]):
 
     current_scrapers = set([scraper["_id"] async for scraper in motor.db.Scrapers.find()])
     
