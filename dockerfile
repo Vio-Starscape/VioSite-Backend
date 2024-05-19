@@ -12,8 +12,6 @@ ENV PORT=5567
 
 COPY . /app
 
-EXPOSE $PORT
+EXPOSE ${PORT}
 
-CMD ["python3", "main.py"]
-
-#docker build -t whydowelivewithoutmeaning/vio_loadbalance:X.X .
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT}""]
