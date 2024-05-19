@@ -40,10 +40,5 @@ motor.init_app(app)
 app.register_blueprint(authentication, url_prefix="/api/auth")
 app.register_blueprint(scrapers_bp, url_prefix="/api/scrapers")
 
-@app.before_serving
-async def print_routes():
-    for route in app.url_map.iter_rules():
-        print(route)
-
 if __name__ == "__main__":
     app.run(debug=True)
