@@ -7,6 +7,7 @@ from database import motor
 
 from blueprint.authentication import authentication
 from blueprint.scrapers import scrapers_bp
+from blueprint.terminal import terminal_bp
 
 load_dotenv(override=True)
 
@@ -39,6 +40,7 @@ motor.init_app(app)
 
 app.register_blueprint(authentication, url_prefix="/api/auth")
 app.register_blueprint(scrapers_bp, url_prefix="/api/scrapers")
+app.register_blueprint(terminal_bp, url_prefix="/api/terminal")
 
 if __name__ == "__main__":
     app.run(debug=True)
