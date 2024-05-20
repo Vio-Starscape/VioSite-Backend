@@ -23,4 +23,12 @@ async def get_item(user: UserPermissions):
         sort=[("_id", -1)]
         )
     
+    buy_listings = response["items"][name]["buy"]
+    sell_listings = response["items"][name]["sell"]
+    response["buy"] = buy_listings
+    response["sell"] = sell_listings
+    response["name"] = name
+    del response["items"]
+
+    
     return jsonify(response), 200
