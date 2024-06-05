@@ -46,4 +46,7 @@ async def print_routes():
         print(route)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5567,
+        debug=True)
