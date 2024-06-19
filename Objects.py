@@ -38,6 +38,7 @@ class UserPermissions(BaseModel):
 
 class Scraper(BaseModel):
     name: str
+    host: str
     active: bool
     yoinked: bool
 
@@ -45,6 +46,7 @@ class Scraper(BaseModel):
         return {
             "_id": self.name,
             "active": self.active,
+            "host": self.host,
             "yoinked": self.yoinked
         }
     
@@ -53,5 +55,6 @@ class Scraper(BaseModel):
         return Scraper(
             name=data["_id"],
             active=data["active"],
+            host=data.get("host", "localhost"),
             yoinked=data["yoinked"]
         )
