@@ -44,11 +44,16 @@ def scraper_required(f):
     @wraps(f)
     async def decorated_function(*args, **kwargs):
         data = await request.get_json()
+        
+        host = request.args.get("host")
+        if not host:
+            return jsonify({"message": "No host provided"}), 400
+        
         try:
             if isinstance(data, list):
-                kwargs["scrapers"] = [Scraper(**scraper) for scraper in data]
+                kwargs["scrapers"] = [Scraper(**scraper, host=host) for scraper in data]
             else:
-                kwargs["updated_scraper"] = Scraper(**data)
+                kwargs["updated_scraper"] = Scraper(**data, host=host)
         except Exception as e:
             logger.error(e)
             return jsonify({"message": "Invalid Scraper data"}), 400
