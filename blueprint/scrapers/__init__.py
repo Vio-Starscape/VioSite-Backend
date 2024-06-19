@@ -1,4 +1,4 @@
-from quart import Blueprint, jsonify, current_app
+from quart import Blueprint, jsonify, current_app, request
 from database import motor
 from helpers import token_required, scraper_required, owner_api_key_required
 from Objects import UserPermissions, Scraper
@@ -32,14 +32,23 @@ async def scraper_update(*, user: UserPermissions = None, updated_scraper: Scrap
 @scrapers_bp.route('/getall', methods=["GET"])
 @owner_api_key_required
 async def scraper_getall():
-    scrapers = [Scraper.mongo_load(account) async for account in motor.db.Scrapers.find()]
+    host = request.args.get("host")
+    if not host:
+        return jsonify({"message": "No host provided"}), 400
+    
+    scrapers = [Scraper.mongo_load(account) async for account in motor.db.Scrapers.find({"host": host})]
     return jsonify([scraper.model_dump() for scraper in scrapers])
 
 @scrapers_bp.route('/update/active', methods=["POST"])
 @owner_api_key_required
 @scraper_required
 async def scraper_update_active(*, updated_scraper: Scraper = None):
-    await motor.db.Scrapers.update_many({}, {"$set": {"active": False}})
+    
+    host = request.args.get("host")
+    if not host:
+        return jsonify({"message": "No host provided"}), 400
+    
+    await motor.db.Scrapers.update_many({"host": host}, {"$set": {"active": False}})
     await motor.db.Scrapers.update_one({"_id": updated_scraper.name}, {"$set": {"active": updated_scraper.active}})
     return jsonify({"message": "success"})
 
@@ -54,8 +63,12 @@ async def scraper_update_yoinked(*, updated_scraper: Scraper = None):
 @owner_api_key_required
 @scraper_required
 async def scraper_add(*, scrapers: list[Scraper] = None):
+    
+    host = request.args.get("host")
+    if not host:
+        return jsonify({"message": "No host provided"}), 400
 
-    current_scrapers = set([scraper["_id"] async for scraper in motor.db.Scrapers.find()])
+    current_scrapers = set([scraper["_id"] async for scraper in motor.db.Scrapers.find({"host": host})])
     
     new_scrapers = set([scraper.name for scraper in scrapers])
 
@@ -72,6 +85,6 @@ async def scraper_add(*, scrapers: list[Scraper] = None):
         ]
     )
 
-    await motor.db.Scrapers.delete_many({"_id": {"$nin": [scraper.name for scraper in scrapers]}})
+    await motor.db.Scrapers.delete_many({"_id": {"$nin": [scraper.name for scraper in scrapers]}, "host": host})
         
     return jsonify({"message": "success"})
