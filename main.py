@@ -7,6 +7,7 @@ from database import motor
 
 from blueprint.authentication import authentication
 from blueprint.scrapers import scrapers_bp
+from blueprint.user import user_bp
 
 load_dotenv(override=True)
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 app = Quart(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["OWNER_API_KEY"] = os.getenv("OWNER_API_KEY")
+app.config["OWNER_ID"] = os.getenv("OWNER_ID")
 
 app.config["DISCORD_BASE_URL"] = "https://discord.com/api/v10"
 app.config["DISCORD_CLIENT_ID"] = os.getenv("DISCORD_CLIENT_ID")
@@ -39,6 +41,7 @@ motor.init_app(app)
 
 app.register_blueprint(authentication, url_prefix="/api/auth")
 app.register_blueprint(scrapers_bp, url_prefix="/api/scrapers")
+app.register_blueprint(user_bp, url_prefix="/api/user")
 
 @app.before_serving
 async def print_routes():

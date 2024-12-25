@@ -27,9 +27,9 @@ def token_required(f):
                 decoded_user = User(**user)
                 user_permissions = await motor.db.Permissions.find_one({"_id": decoded_user.id})
                 if user_permissions:
-                    user_permissions = UserPermissions(user=decoded_user, **user_permissions["permissions"])
+                    user_permissions = UserPermissions(user=decoded_user, **user_permissions["permissions"], owner=decoded_user.id == int(current_app.config["OWNER_ID"]))
                 else:
-                    user_permissions = UserPermissions(user=decoded_user)
+                    user_permissions = UserPermissions(user=decoded_user, owner=decoded_user.id == int(current_app.config["OWNER_ID"]))
                 kwargs["user"] = user_permissions
 
             except Exception as e:
