@@ -4,6 +4,7 @@ from helpers import token_required, owner_api_key_required, scraper_required
 from Objects import UserPermissions, Token, User
 from jose import jwt
 import aiohttp
+import uuid
 
 authentication = Blueprint("authentication", __name__)
 
@@ -45,6 +46,27 @@ async def validate_user(token) -> Token:
 @token_required
 async def get_user_permissions(*, user: UserPermissions = None):
     return jsonify(user.model_dump())
+
+@authentication.route("/@me/key", methods=["GET"])
+@token_required
+async def get_user_api_key(*, user: UserPermissions = None):
+    response = await motor.db.API.find_one({"discord_id": user.user.id})
+    if response:
+        return jsonify({"key": response["_id"]})
+    
+    new_key = str(uuid.uuid4())
+    await motor.db.API.insert_one({"_id": new_key, "discord_id": user.user.id})
+    return jsonify({"key": new_key})
+
+@authentication.route("/@me/key/regenerate", methods=["POST"])
+@token_required
+async def regenerate_user_api_key(*, user: UserPermissions = None):
+    new_key = str(uuid.uuid4())
+    # Delete the old key and insert the new one
+    await motor.db.API.delete_one({"discord_id": user.user.id})
+    await motor.db.API.insert_one({"_id": new_key, "discord_id": user.user.id})
+    return jsonify({"key": new_key})
+    
 
 @authentication.route("/register", methods=["POST"])
 async def register_user():
