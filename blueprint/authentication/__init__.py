@@ -10,6 +10,7 @@ authentication = Blueprint("authentication", __name__)
 
 async def validate_user(token) -> Token:
     async with aiohttp.ClientSession() as session:
+        print(request.url_root + "api/auth/register")
         data = {
             "grant_type": "authorization_code",
             "code": token,
