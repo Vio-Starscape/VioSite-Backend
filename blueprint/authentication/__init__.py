@@ -10,11 +10,13 @@ authentication = Blueprint("authentication", __name__)
 
 async def validate_user(token) -> Token:
     async with aiohttp.ClientSession() as session:
-        print(request.url_root + "api/auth/register")
+        scheme = request.headers.get("X-Forwarded-Proto", "http")
+        url_root = f"{scheme}://{request.host}/"
+        
         data = {
             "grant_type": "authorization_code",
             "code": token,
-            "redirect_uri": request.url_root + "api/auth/register",
+            "redirect_uri": url_root + "callback",
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
