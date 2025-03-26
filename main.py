@@ -27,6 +27,7 @@ app.config["MONGO_URI"] = os.getenv("MONGO_URI")
 
 app = cors(
     app,
+    allow_origin="http://localhost:3000" if os.getenv("TESTING") == "True" else ["https://v-io.info", "https://vio.er-ic.ca"],
     allow_credentials=True,
     allow_headers=[
         "Authorization",
