@@ -13,7 +13,7 @@ async def validate_user(token) -> Token:
         data = {
             "grant_type": "authorization_code",
             "code": token,
-            "redirect_uri": current_app.config["DISCORD_REDIRECT_URI"],
+            "redirect_uri": request.url_root + "api/auth/register",
         }
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",

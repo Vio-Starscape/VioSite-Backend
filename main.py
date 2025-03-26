@@ -22,13 +22,11 @@ app.config["OWNER_ID"] = os.getenv("OWNER_ID")
 app.config["DISCORD_BASE_URL"] = "https://discord.com/api/v10"
 app.config["DISCORD_CLIENT_ID"] = os.getenv("DISCORD_CLIENT_ID")
 app.config["DISCORD_CLIENT_SECRET"] = os.getenv("DISCORD_CLIENT_SECRET")
-app.config["DISCORD_REDIRECT_URI"] = os.getenv("DISCORD_REDIRECT_URI")
 
 app.config["MONGO_URI"] = os.getenv("MONGO_URI")
 
 app = cors(
     app,
-    allow_origin=os.getenv("ALLOW_ORIGIN") or "http://localhost:3000",
     allow_credentials=True,
     allow_headers=[
         "Authorization",
