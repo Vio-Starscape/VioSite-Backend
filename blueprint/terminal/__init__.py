@@ -1,10 +1,17 @@
-from quart import Blueprint, jsonify, current_app, request
+from quart import Blueprint, jsonify, current_app, request, render_template, send_file
 from database import motor
 from helpers import token_required
-from Objects import UserPermissions, Scraper
-from pymongo import UpdateOne
+from Objects import UserPermissions
+from io import BytesIO
+import uuid
+import os
+import json
+from pyppeteer import launch
 
 terminal_bp = Blueprint("terminal", __name__)
+
+TEMP_DIR = os.path.join(os.getcwd(), 'workspace', 'temp')
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 @terminal_bp.route('/items', methods=["GET", "POST"], strict_slashes=False)
 @token_required
@@ -29,3 +36,87 @@ async def items(user: UserPermissions):
         return jsonify({"message": "Item updated"})
     else:
         return jsonify({"message": "You do not have permission to access this endpoint"}), 403
+    
+async def insert_roblox_users_to_market(market_data: dict, roblox_users = None) -> None:
+        """Insert Roblox Users into the market data.
+        
+        This function will replace the Vendor ID with a Roblox User Object instead of the ID.
+        """
+        if roblox_users is None:
+            roblox_users = {doc["_id"]: doc async for doc in motor.db["Roblox"].find()}
+
+        for value in market_data["items"].values():
+            for listing in value["buy"]:
+                try:
+                    listing[2] = roblox_users[listing[2]]
+                except KeyError:
+                    value["buy"].remove(listing)
+            for listing in value["sell"]:
+                try:
+                    listing[2] = roblox_users[listing[2]]
+                except KeyError:
+                    value["sell"].remove(listing)
+        return market_data
+    
+@terminal_bp.route('/image/<item>', methods=["GET"], strict_slashes=False)
+async def image(item):
+    if not item:
+        return jsonify({"message": "No item provided"}), 400
+    
+    item_instance = (await motor.db.Market.find_one({f"items.{item}": {"$exists": True}}, {f"items.{item}": 1, "time_scanned":1}, sort={"_id": -1}))
+    item_instance = await insert_roblox_users_to_market(item_instance)
+    
+    if not item_instance:
+        return jsonify({"message": "Item not found"}), 404
+    
+    item_info = item_instance["items"][item]
+    item_info["time_scanned"] = item_instance["time_scanned"].isoformat()
+    
+    # Render the HTML template with item_info
+    html = await render_template("terminal/item_preview.html", item_info_json=json.dumps(item_info))
+
+    # Generate a unique filename for the temporary image
+    temp_filename = f"{uuid.uuid4()}.html"
+    temp_filepath = os.path.join(TEMP_DIR, temp_filename)
+    with open(temp_filepath, 'w') as f:
+        f.write(html)
+
+    try:
+        
+        browser = await launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+        )
+        
+        page = await browser.newPage()
+        await page.goto(f"file://{temp_filepath}", waitUntil="load")
+        await page.waitForSelector("#root > div, #root > *", timeout=5000)
+        
+        bounding_box = await page.evaluate('''() => {
+                const rect = document.documentElement.getBoundingClientRect();
+                return {
+                    width: Math.ceil(rect.width),
+                    height: Math.ceil(rect.height)
+                };
+                }''')
+
+        await page.setViewport({
+            "width": 500,
+            "height": bounding_box["height"]
+        })
+        
+        image_bytes = await page.screenshot(full_page=False)
+        await browser.close()
+        
+        os.remove(temp_filepath)  # Remove the temporary HTML file
+
+        # Send the file as a response
+
+        return await send_file(
+            BytesIO(image_bytes), 
+            mimetype="image/png", 
+            as_attachment=False, 
+            attachment_filename=f"{item}.png"
+        )
+    except Exception as e:
+        return jsonify({"message": f"An error occurred: {str(e)}"}), 500

@@ -11,7 +11,10 @@ authentication = Blueprint("authentication", __name__)
 async def validate_user(token) -> Token:
     async with aiohttp.ClientSession() as session:
         scheme = request.headers.get("X-Forwarded-Proto", "http")
-        url_root = f"{scheme}://{request.host}/"
+        if scheme == "http":
+            url_root = f"http://localhost:3000/"
+        else:
+            url_root = f"{scheme}://{request.host}/" 
         
         data = {
             "grant_type": "authorization_code",
