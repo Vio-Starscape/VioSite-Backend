@@ -1,9 +1,11 @@
 import os
 import logging
+import pyppeteer
 from quart import Quart
 from quart_cors import cors
 from dotenv import load_dotenv
 from database import motor
+
 
 from blueprint.authentication import authentication
 from blueprint.scrapers import scrapers_bp

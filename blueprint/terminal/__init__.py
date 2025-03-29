@@ -85,6 +85,7 @@ async def image(item):
         
         browser = await launch(
             headless=True,
+            executablePath="/usr/bin/chromium",
             args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
         
