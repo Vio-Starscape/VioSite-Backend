@@ -24,15 +24,23 @@ def token_required(f):
             token = auth_header.split(' ')[1]
             try:
                 user = jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])
+                
                 decoded_user = User(**user)
                 user_permissions = await motor.db.Permissions.find_one({"_id": decoded_user.id})
-                if user_permissions:
-                    user_permissions = UserPermissions(user=decoded_user, **user_permissions["permissions"], owner=decoded_user.id == int(current_app.config["OWNER_ID"]))
-                else:
-                    user_permissions = UserPermissions(user=decoded_user, owner=decoded_user.id == int(current_app.config["OWNER_ID"]))
+
+                raw_permissions = user_permissions.get("permissions") if user_permissions else None
+                perm_data = raw_permissions if isinstance(raw_permissions, dict) else {}
+
+                user_permissions = UserPermissions(
+                    user=decoded_user,
+                    **perm_data,
+                    owner=decoded_user.id == int(current_app.config["OWNER_ID"])
+                )
+                
                 kwargs["user"] = user_permissions
 
             except Exception as e:
+                print("Something went wrongt")
                 logger.error(e)
                 return jsonify({"message": "Token validation error"}), 401
         else:

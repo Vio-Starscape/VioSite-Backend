@@ -64,7 +64,6 @@
     const ItemContainer = ({ itemInfo }) => (
       <div className="bg-white shadow-lg rounded-lg p-6 w-full flex flex-col">
         <h2 className="text-2xl font-bold mb-2 font-anta">Item: {itemInfo.name}</h2>
-        <p className="text-sm text-gray-500 mb-4">Last scanned: {new Date(itemInfo.time_scanned).toLocaleString()}</p>
         <div className="flex flex-col lg:flex-row gap-6 overflow-hidden">
           <RenderListings list={itemInfo.sell || []} type="Sell" />
           <RenderListings list={itemInfo.buy || []} type="Buy" />
