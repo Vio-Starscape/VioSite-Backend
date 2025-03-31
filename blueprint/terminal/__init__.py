@@ -104,16 +104,22 @@ async def image(item):
         
         await page.waitForSelector("body", timeout=5000)
         
+        await page.setViewport({
+            "width": 1050,
+            "height": 1000  # Temp height, just to let the page layout correctly
+        })
+        
         bounding_box = await page.evaluate('''() => {
-                const rect = document.documentElement.getBoundingClientRect();
-                return {
-                    width: Math.ceil(rect.width),
-                    height: Math.ceil(rect.height)
-                };
-                }''')
+            const el = document.querySelector("#screenshot-root");
+            const rect = el.getBoundingClientRect();
+            return {
+                width: Math.ceil(rect.width),
+                height: Math.ceil(rect.height)
+            };
+        }''')
 
         await page.setViewport({
-            "width": 500,
+            "width": 1050,
             "height": bounding_box["height"]
         })
         
