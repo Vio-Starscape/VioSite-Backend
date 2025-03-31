@@ -2,76 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Item Preview</title>
+  <title>{{ item.name }} - Preview</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Tailwind CDN or custom CSS if needed -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <style>
+    @font-face {
+      font-family: 'Anta';
+      src: url(data:font/ttf;base64,{{ anta_base64 | safe }}) format('truetype');
+    }
+    .font-anta {
+      font-family: 'Anta', monospace;
+    }
+  </style>
+  <style>
+    {{ tailwind_css | safe }}
+  </style>
 </head>
-<body class="bg-gray-50 p-4">
-  <div id="root"></div>
+<body class="bg-gray-50 p-6 font-mono">
+  <div class="max-w-3xl mx-auto bg-white shadow-lg rounded-lg p-6 w-full flex flex-col">
+    <h2 class="text-2xl font-bold mb-6 font-anta text-center">Item: {{ item.name }}</h2>
 
-  <script type="application/json" id="item-data">{{ item_info_json | safe }}</script>
-
-  <script type="text/babel">
-    const itemInfo = JSON.parse(document.getElementById('item-data').textContent);
-
-    const formatAmount = (amount) => {
-        if (typeof amount !== 'number' || isNaN(amount)) return 'N/A';
-        if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
-        if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K';
-        return amount.toString();
-      };
-
-      const formatPrice = (price) => {
-        if (typeof price !== 'number' || isNaN(price)) return 'N/A';
-        return price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      };
-
-    const RenderListings = ({ list, type }) => (
-      <div className="w-full lg:w-1/2">
-        <h3 className="text-gray-700 font-semibold uppercase mb-2">{type} Listings</h3>
-        <div className="font-mono text-xs text-gray-500 mb-1 px-1">
-          <div className="flex">
-            <span className="w-40">User</span>
-            <span className="w-32 text-right hidden sm:inline">Amount (Units)</span>
-            <span className="w-32 text-right sm:hidden">Amt (U)</span>
-            <span className="w-24 text-right">Price</span>
+    <div class="flex flex-col lg:flex-row gap-6 overflow-hidden">
+      {% for type, listings in [("Sell", item.sell), ("Buy", item.buy)] %}
+        <div class="w-full lg:w-1/2">
+          <h3 class="text-gray-700 font-semibold uppercase mb-2">{{ type }} Listings</h3>
+          <div class="text-xs text-gray-500 mb-1 px-1 font-semibold flex">
+            <span class="w-40">User</span>
+            <span class="w-32 text-right">Amount (Units)</span>
+            <span class="w-24 text-right">Price</span>
+          </div>
+          <div class="bg-gray-100 rounded-md p-2 border border-gray-300">
+            {% for listing in listings %}
+              <div class="text-sm text-gray-800 border-b border-dashed border-gray-300 py-1 flex items-center gap-x-4">
+                <span class="w-40 truncate" title="{{ listing[2].displayName or 'Unknown' }}">
+                  {{ listing[2].displayName or 'Unknown' }}
+                </span>
+                <span class="w-32 text-right">
+                  {{ listing[1] | format_amount }}
+                </span>
+                <span class="w-24 text-right whitespace-nowrap">
+                  {{ listing[0] | format_price }} C
+                </span>
+              </div>
+            {% else %}
+              <p class="text-gray-500 font-mono">No {{ type.lower() }} listings available.</p>
+            {% endfor %}
           </div>
         </div>
-        <div className="bg-gray-100 rounded-md p-2 border border-gray-300">
-            {list.length > 0 ? list.map(([price, amount, vendor], index) => (
-                <div key={index} className="font-mono text-sm text-gray-800 border-b border-dashed border-gray-300 py-1 flex items-center gap-x-4">
-                    <span className="w-40 truncate" title={vendor && vendor.displayName ? vendor.displayName : 'Unknown'}>
-                        {vendor && vendor.displayName ? vendor.displayName : 'Unknown'}
-                    </span>
-                  <span className="w-32 text-right">
-                    {formatAmount(amount)} <span className="hidden sm:inline">Units</span><span className="sm:hidden">U</span>
-                  </span>
-                  <span className="w-24 text-right whitespace-nowrap">
-                    {formatPrice(price)} C
-                  </span>
-                </div>
-              )) : (
-                <p className="text-gray-500 font-mono">No listings available.</p>
-              )}
-        </div>
-      </div>
-    );
-
-    const ItemContainer = ({ itemInfo }) => (
-      <div className="bg-white shadow-lg rounded-lg p-6 w-full flex flex-col">
-        <h2 className="text-2xl font-bold mb-2 font-anta">Item: {itemInfo.name}</h2>
-        <div className="flex flex-col lg:flex-row gap-6 overflow-hidden">
-          <RenderListings list={itemInfo.sell || []} type="Sell" />
-          <RenderListings list={itemInfo.buy || []} type="Buy" />
-        </div>
-      </div>
-    );
-
-    ReactDOM.render(<ItemContainer itemInfo={itemInfo} />, document.getElementById('root'));
-  </script>
+      {% endfor %}
+    </div>
+  </div>
 </body>
 </html>

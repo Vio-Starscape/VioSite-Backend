@@ -50,6 +50,24 @@ app.register_blueprint(terminal_bp, url_prefix="/api/terminal")
 async def print_routes():
     for route in app.url_map.iter_rules():
         print(route)
+        
+@app.template_filter("format_amount")
+def format_amount(value):
+    try:
+        if value >= 1_000_000:
+            return f"{value / 1_000_000:.1f}M"
+        elif value >= 1_000:
+            return f"{value / 1_000:.1f}K"
+        return str(value)
+    except:
+        return "N/A"
+
+@app.template_filter("format_price")
+def format_price(value):
+    try:
+        return f"{value:.2f}"
+    except:
+        return "N/A"
 
 if __name__ == "__main__":
     app.run(

@@ -30,6 +30,13 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y \
+    libgbm-dev \
+    libnss3-dev \
+    libxshmfence-dev \
+    --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Install Chromium
 RUN apt-get update && apt-get install -y chromium && \
     apt-get clean && rm -rf /var/lib/apt/lists/*

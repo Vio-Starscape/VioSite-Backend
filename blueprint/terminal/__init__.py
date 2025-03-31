@@ -5,7 +5,7 @@ from Objects import UserPermissions
 from io import BytesIO
 import uuid
 import os
-import json
+import base64
 from pyppeteer import launch
 
 terminal_bp = Blueprint("terminal", __name__)
@@ -72,8 +72,17 @@ async def image(item):
     item_info = item_instance["items"][item]
     item_info["time_scanned"] = item_instance["time_scanned"].isoformat()
     
+    css_path = os.path.join(current_app.root_path, "templates", "terminal", "mini.css")
+    anta_path = os.path.join(current_app.root_path, "templates", "terminal", "anta.b64")
+    
+    with open(css_path, "r") as f:
+        tailwind_css = f.read()
+        
+    with open(anta_path, "r") as f:
+        anta_base64 = base64.b64decode(f.read())
+    
     # Render the HTML template with item_info
-    html = await render_template("terminal/item_preview.html", item_info_json=json.dumps(item_info))
+    html = await render_template("terminal/item_preview.html", item=item_info, tailwind_css=tailwind_css, anta_base64=anta_base64)
 
     # Generate a unique filename for the temporary image
     temp_filename = f"{uuid.uuid4()}.html"
@@ -89,9 +98,11 @@ async def image(item):
             args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
         )
         
+        
         page = await browser.newPage()
-        await page.goto(f"file://{temp_filepath}", waitUntil="load")
-        await page.waitForSelector("#root > div, #root > *", timeout=5000)
+        await page.goto(f"file://{temp_filepath}", waitUntil="load", timeout=10_000)
+        
+        await page.waitForSelector("body", timeout=5000)
         
         bounding_box = await page.evaluate('''() => {
                 const rect = document.documentElement.getBoundingClientRect();
@@ -120,4 +131,5 @@ async def image(item):
             attachment_filename=f"{item}.png"
         )
     except Exception as e:
+        print(f"Error: {e}")
         return jsonify({"message": f"An error occurred: {str(e)}"}), 500
